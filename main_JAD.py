@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import argparse
@@ -12,7 +13,7 @@ from vsbrnn.utils import get_log_likelihood
 from vsbrnn.data.region_model import FaceRegionModel4
 
 np.random.seed(616)
-#python main_psy_paper.py 32 13 --plot true
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 def plotROC(cats, preds, xlabel=None, filename=None):
     fpr, tpr, _ = roc_curve(cats, preds, pos_label=1)
@@ -31,14 +32,14 @@ def plotROC(cats, preds, xlabel=None, filename=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run seq2seq for apathy.')
-    parser.add_argument('states', type=int, help="LSTM states")
-    parser.add_argument('epochs', type=int, help="iterations")
+    parser.add_argument('--states', type=int, default=32, help="LSTM states")
+    parser.add_argument('--epochs', type=int, default=13, help="iterations")
     
     args = parser.parse_args()
     states = args.states
     epochs = args.epochs
 
-    print("Running states={} epochs={}".format(states, epochs))
+    print("Reading, parsing, and processing visual scanning data")
     # Get data
     di = DataImporter()
     bd_d_dc = DataCreator(di, "fix", max_len=None, model=FaceRegionModel4(),
@@ -151,8 +152,6 @@ if __name__ == "__main__":
     remitted_auc = roc_auc_score([0]*len(test_cat_list["BR"]) + [1]*len(test_cat_list["R"]),
                                  test_cat_list["BR"] + test_cat_list["R"])
     print("\t---------------------------")
-    print("\tAUC for Bipolar (depressed + remitted) vs unipolar (depressed + remitted) = {}".format(remitted_auc))
-
     cats = hold_out_test_cats.tolist() + mean_cats.tolist() + [0]*len(test_cat_list["BR"]) + [1]*len(test_cat_list["R"]) + [1]*len(test_cat_list["C"])
     preds = hold_out_mean_preds + mean_preds + test_cat_list["BR"] + test_cat_list["R"] + test_cat_list["C"]
     all_auc = roc_auc_score(cats, preds)
@@ -162,9 +161,9 @@ if __name__ == "__main__":
         cm[0, 0], cm[0, 1], cm[1, 0], cm[1, 1]))
 
     print("\n\tSimilarity index")
-    print("\t\tBipolar disorder {}+{}".format(np.mean(hold_out_bd_preds),
+    print("\t\tDepressed bipolar disorder {}+{}".format(np.mean(hold_out_bd_preds),
                                              np.std(hold_out_bd_preds)))
-    print("\t\tUnipolar disorder {}+{}".format(np.mean(hold_out_d_preds),
+    print("\t\tDepressed unipolar disorder {}+{}".format(np.mean(hold_out_d_preds),
                                               np.std(hold_out_d_preds)))
     print("\t\tRemitted bipolar disorder {}+{}".format(np.mean(test_cat_list["BR"]),
                                                       np.std(test_cat_list["BR"])))

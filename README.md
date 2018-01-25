@@ -88,8 +88,8 @@ The proceduces are as follows:
 		- image type and image position
 		
 	To run the 3 conditions presented in the AAAI paper:	
-		```python
-		python main_AAAI.py fix 128 mean --region_model_type semantic8 (or semantic5)
-        python main_AAAI.py fix 128 mean --region_model_type grid16 (or grid9)
-        python main_AAAI.py fix-sequence 256 mean --print_sub
-		```
+	```python
+   	python main_AAAI.py fix 128 mean --region_model_type semantic8 (or semantic5)
+    	python main_AAAI.py fix 128 mean --region_model_type grid16 (or grid9)
+    	python main_AAAI.py fix-sequence 256 mean --print_sub
+	```

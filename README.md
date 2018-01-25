@@ -74,7 +74,7 @@ The proceduces are as follows:
     Similarity index box plots saved in img/mle_bar.png...
     ```
     For example:
-    ![mle_bar.png](https://github.com/jonomon/VSMood/img/mle_bar.png)
+    ![mle_bar.png](https://github.com/jonomon/VSMood/blob/master/img/mle_bar.png)
 ### Note:
 - In keras.json, the "image_data_format" should be set to "channels_last" and "backend" should be set to "tensorflow".
 - For the technical description use _main_AAAI.py_. This implementation provides an exploratory interface to test multiple parameters:

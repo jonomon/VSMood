@@ -87,7 +87,9 @@ The proceduces are as follows:
 		- scan_path, glance duration (for glance the data type)
 		- image type and image position
 		
-    To run the 3 conditions presented in the AAAI paper:
-        1) python main_AAAI.py fix 128 mean --region_model_type semantic8 (or semantic5)
-        2) python main_AAAI.py fix 128 mean --region_model_type grid16 (or grid9)
-        3) python main_AAAI.py fix-sequence 256 mean --print_sub
+	To run the 3 conditions presented in the AAAI paper:	
+		```python
+		python main_AAAI.py fix 128 mean --region_model_type semantic8 (or semantic5)
+        python main_AAAI.py fix 128 mean --region_model_type grid16 (or grid9)
+        python main_AAAI.py fix-sequence 256 mean --print_sub
+		```

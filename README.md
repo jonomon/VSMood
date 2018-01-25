@@ -39,6 +39,7 @@ The proceduces are as follows:
     ```
 4) This is followed by training and evaluting the held-out set. The messages are similar to steps 2 and 3. (Note that training for the held-out set should take a couple of minutes).
 5) The results of both the leave one out and held out sets, remitted bipolar, remitted unipolar and healthy controls are provided.
+
     5.1) The AUC of classifying bipolar and unipolar (both in a depressed state) from the both the leave one out and held out set are provided as follows:
     ```
     AUC score of group 1 + 2 = 0.867430441899
@@ -73,7 +74,6 @@ The proceduces are as follows:
     ROCs saved in img/rocs.png..
     Similarity index box plots saved in img/mle_bar.png...
     ```
-    For example:
     ![mle_bar.png](https://github.com/jonomon/VSMood/blob/master/img/mle_bar.png)
 ### Note:
 - In keras.json, the "image_data_format" should be set to "channels_last" and "backend" should be set to "tensorflow".

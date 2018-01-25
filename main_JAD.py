@@ -33,12 +33,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run seq2seq for apathy.')
     parser.add_argument('states', type=int, help="LSTM states")
     parser.add_argument('epochs', type=int, help="iterations")
-    parser.add_argument('--plot', type=bool)
     
     args = parser.parse_args()
     states = args.states
     epochs = args.epochs
-    plot = args.plot if args.plot is not None else False
 
     print("Running states={} epochs={}".format(states, epochs))
     # Get data
@@ -57,6 +55,8 @@ if __name__ == "__main__":
     train_subs, hold_out_subs, train_cats, hold_out_cat = train_test_split(
         subject_list, cat_list,
         test_size=0.33, stratify=cat_list, random_state=23422)
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("1) Training leave one out classification model...")
     # Results 1) Leave one out classification
     mean_preds = []
     mean_cats = []
@@ -78,15 +78,21 @@ if __name__ == "__main__":
         mean_preds.append(log_like)
         mean_cats.append(y_test[0, 1])
         classification.append(np.mean(log_like)>0)
-        print("Training for {} log_like {}".format(test_sub, log_like))
+    print("Training leave one out classification model complete")
     llo_auc = roc_auc_score(mean_cats, mean_preds)
-    print("LLO AUC score = {}".format(llo_auc))
+    print("\t---------------------------")
+    print("\tResults 1")
+    print("\tAUC score of the leave one out set= {}".format(llo_auc))
     classification = np.array(classification)
     mean_cats = np.array(mean_cats)
     cm = confusion_matrix(mean_cats, classification)
-    print("CM = {}".format(cm))
+    print("\tClassification of leave one out set \n\ttp={}, fp={}, fn={}, tn={}".format(
+        cm[0, 0], cm[0, 1], cm[1, 0], cm[1, 1]))
+    print("\t---------------------------")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
 
-    # Results 2) Predict remitted and controls
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("2) Training held out classification model...")
     X_train, y_train = bd_d_dc.get_data_for_subjects(train_subs)
     trainer2 = RnnTrain(states=states, verbose=False)
     trainer2.do_simple_fix_training(X_train, y_train, epochs=epochs)
@@ -109,14 +115,21 @@ if __name__ == "__main__":
         hold_out_mean_preds.append(prob)
         hold_out_classification.append(prob>0)
     hold_out_auc = roc_auc_score(np.array(hold_out_cat), hold_out_mean_preds)
-    print("hold_out AUC score = {}".format(hold_out_auc))
+    print("Training held out classification model complete")
+
+    print("\t---------------------------")
+    print("\t AUC score of the held out set= {}".format(hold_out_auc))
     cm = confusion_matrix(hold_out_cat, hold_out_classification)
-    print("hold out cm = {}".format(cm))
+    print("\tClassification of held out set \n\ttp={}, fp={}, fn={}, tn={}".format(
+        cm[0, 0], cm[0, 1], cm[1, 0], cm[1, 1]))
 
     held_lloc_auc = roc_auc_score(hold_out_cat + mean_cats.tolist(),
                                   hold_out_mean_preds + mean_preds)
-    print("held_llo AUC score = {}".format(held_lloc_auc))
+    print("\t---------------------------")
 
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("Aggregate results")
+    print("\tAUC score of group 1 + 2 = {}".format(held_lloc_auc))
     others_sub = other_dc.get_unique_subject_list()
     others_cat = other_dc.get_cat_letter_of_subject(others_sub)
 
@@ -134,94 +147,98 @@ if __name__ == "__main__":
     hold_out_test_cats = np.array(hold_out_cat)
     hold_out_bd_preds = np.array(hold_out_mean_preds)[np.where(hold_out_test_cats==0)[0]]
     hold_out_d_preds = np.array(hold_out_mean_preds)[np.where(hold_out_test_cats==1)[0]]
-    print("mean BD {}+{}".format(np.mean(hold_out_bd_preds), np.std(hold_out_bd_preds)))
-    print("mean D {}+{}".format(np.mean(hold_out_d_preds), np.std(hold_out_d_preds)))
-    print("mean BR {}+{}".format(np.mean(test_cat_list["BR"]), np.std(test_cat_list["BR"])))
-    print("mean R {}+{}".format(np.mean(test_cat_list["R"]), np.std(test_cat_list["R"])))
-    print("mean C {}+{}".format(np.mean(test_cat_list["C"]), np.std(test_cat_list["C"])))
 
-    remitted_auc = roc_auc_score([0]*len( test_cat_list["BR"]) + [1]*len(test_cat_list["R"]),
+    remitted_auc = roc_auc_score([0]*len(test_cat_list["BR"]) + [1]*len(test_cat_list["R"]),
                                  test_cat_list["BR"] + test_cat_list["R"])
-    print("Remitted AUC = {}".format(remitted_auc))
+    print("\t---------------------------")
+    print("\tAUC for Bipolar (depressed + remitted) vs unipolar (depressed + remitted) = {}".format(remitted_auc))
 
     cats = hold_out_test_cats.tolist() + mean_cats.tolist() + [0]*len(test_cat_list["BR"]) + [1]*len(test_cat_list["R"]) + [1]*len(test_cat_list["C"])
     preds = hold_out_mean_preds + mean_preds + test_cat_list["BR"] + test_cat_list["R"] + test_cat_list["C"]
     all_auc = roc_auc_score(cats, preds)
     cm = confusion_matrix(cats, np.array(preds)>0)
-    print("all AUC ={}".format(all_auc))
-    print("all cm = {}".format(cm))
+    print("\tAUC for Bipolar (depressed + remitted) vs unipolar (depressed + remitted) and controls ={}".format(all_auc))
+    print("\tClassification of Bipolar (depressed + remitted) vs unipolar (depressed + remitted) and controls\n\ttp={}, fp={}, fn={}, tn={}".format(
+        cm[0, 0], cm[0, 1], cm[1, 0], cm[1, 1]))
 
-    def ste(arr):
-        return np.std(arr)/np.sqrt(len(arr))
+    print("\n\tSimilarity index")
+    print("\t\tBipolar disorder {}+{}".format(np.mean(hold_out_bd_preds),
+                                             np.std(hold_out_bd_preds)))
+    print("\t\tUnipolar disorder {}+{}".format(np.mean(hold_out_d_preds),
+                                              np.std(hold_out_d_preds)))
+    print("\t\tRemitted bipolar disorder {}+{}".format(np.mean(test_cat_list["BR"]),
+                                                      np.std(test_cat_list["BR"])))
+    print("\t\tRemitted unipolar {}+{}".format(np.mean(test_cat_list["R"]),
+                                              np.std(test_cat_list["R"])))
+    print("\t\tHealthy control {}+{}".format(np.mean(test_cat_list["C"]),
+                                            np.std(test_cat_list["C"])))
+    print("\tStatistic tests (t-tests)")
+    from scipy.stats import ttest_ind
+    t, p = ttest_ind(hold_out_bd_preds, hold_out_d_preds)
+    print("\t\tBipolar depressed vs unipolar depressed t={}, p={}".format(t, p))
+    t, p = ttest_ind(hold_out_d_preds, test_cat_list["R"])
+    print("\t\tUnipolar depressed vs remitted t={}, p={}".format(t, p))
+    t, p = ttest_ind(hold_out_d_preds, test_cat_list["C"])
+    print("\t\tUnipolar depressed vs healthy controls t={}, p={}".format(t, p))
+    t, p = ttest_ind(hold_out_d_preds, test_cat_list["BR"])
+    print("\t\tUnipolar depressed vs Bipolar remitted t={}, p={}".format(t, p))
 
-    if plot:
-        plt.clf()
-        cats = hold_out_test_cats.tolist() + mean_cats.tolist()
-        preds = hold_out_mean_preds + mean_preds
-        plotROC(cats, preds, filename="mdd_bd_llo")
+    t, p = ttest_ind(hold_out_bd_preds, test_cat_list["R"])
+    print("\t\tBipolar depressed vs unipolar remitted t={}, p={}".format(t, p))
+    t, p = ttest_ind(hold_out_bd_preds, test_cat_list["C"])
+    print("\t\tBipolar depressed vs healthy controls t={}, p={}".format(t, p))
+    t, p = ttest_ind(hold_out_bd_preds, test_cat_list["BR"])
+    print("\t\tBipolar depressed vs bipolar remitted t={}, p={}".format(t, p))
+
+    t, p = ttest_ind(test_cat_list["C"], test_cat_list["BR"])
+    print("\t\tHealthy controls vs bipolar remitted t={}, p={}".format(t, p))
+
+    t, p = ttest_ind(test_cat_list["C"], test_cat_list["R"])
+    print("\t\tHealthy controls vs unipolar remitted t={}, p={}".format(t, p))
+    print("\t---------------------------")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
+
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+    print("Generating plots")
+    plt.clf()
+    cats = hold_out_test_cats.tolist() + mean_cats.tolist()
+    preds = hold_out_mean_preds + mean_preds
+    plotROC(cats, preds, filename="mdd_bd_llo")
         
-        plt.subplot(2, 2, 1)
-        cats = hold_out_test_cats.tolist() + mean_cats.tolist() + [0]*len(test_cat_list["BR"]) + [1]*len(test_cat_list["R"])
-        preds = hold_out_mean_preds + mean_preds + test_cat_list["BR"] + test_cat_list["R"]
-        plotROC(cats, preds, xlabel="BD & BD-R vs MDD & MDD-R ")
+    plt.subplot(2, 2, 1)
+    cats = hold_out_test_cats.tolist() + mean_cats.tolist() + [0]*len(test_cat_list["BR"]) + [1]*len(test_cat_list["R"])
+    preds = hold_out_mean_preds + mean_preds + test_cat_list["BR"] + test_cat_list["R"]
+    plotROC(cats, preds, xlabel="BD & BD-R vs MDD & MDD-R ")
 
-        plt.subplot(2, 2, 2)
-        cats = hold_out_test_cats.tolist() + mean_cats.tolist() + [0]*len(test_cat_list["BR"]) + [1]*len(test_cat_list["R"]) + [1]*len(test_cat_list["C"])
-        preds = hold_out_mean_preds + mean_preds + test_cat_list["BR"] + test_cat_list["R"] + test_cat_list["C"]
-        plotROC(cats, preds, xlabel="BD & BD-r vs MDD & MDD-R & C \n")
+    plt.subplot(2, 2, 2)
+    cats = hold_out_test_cats.tolist() + mean_cats.tolist() + [0]*len(test_cat_list["BR"]) + [1]*len(test_cat_list["R"]) + [1]*len(test_cat_list["C"])
+    preds = hold_out_mean_preds + mean_preds + test_cat_list["BR"] + test_cat_list["R"] + test_cat_list["C"]
+    plotROC(cats, preds, xlabel="BD & BD-r vs MDD & MDD-R & C \n")
 
-        plt.subplot(2, 2, 3)
-        bd_hold_out_idx = hold_out_test_cats == 0
-        bd_hold_out_cats = hold_out_test_cats[bd_hold_out_idx]
-        bd_hold_mean_preds = np.array(hold_out_mean_preds)[bd_hold_out_idx] 
+    plt.subplot(2, 2, 3)
+    bd_hold_out_idx = hold_out_test_cats == 0
+    bd_hold_out_cats = hold_out_test_cats[bd_hold_out_idx]
+    bd_hold_mean_preds = np.array(hold_out_mean_preds)[bd_hold_out_idx] 
 
-        bd_mean_cat_idx = mean_cats == 0
-        bd_mean_cats = mean_cats[bd_mean_cat_idx]
-        bd_mean_preds = np.array(mean_preds)[bd_mean_cat_idx]
+    bd_mean_cat_idx = mean_cats == 0
+    bd_mean_cats = mean_cats[bd_mean_cat_idx]
+    bd_mean_preds = np.array(mean_preds)[bd_mean_cat_idx]
 
-        cats = bd_hold_out_cats.tolist() + bd_mean_cats.tolist() + [1]*len(test_cat_list["R"]) + [0]*len(test_cat_list["C"])
-        preds = bd_hold_mean_preds.tolist() + bd_mean_preds.tolist() + test_cat_list["R"] + test_cat_list["C"]
-        plotROC(cats, preds, xlabel="BD & BD-r vs C ")
-        
-        plt.savefig("img/rocs.png")
-        plt.clf()
-        from scipy.stats import ttest_ind
-        x = [1, 2, 3, 4, 5]
-        y = [hold_out_bd_preds, hold_out_d_preds, test_cat_list["BR"], test_cat_list["R"], test_cat_list["C"]]
-        plt.boxplot(y)
-        plt.xticks([1, 2, 3, 4, 5], ("BD", "MDD", "BD-R", "MDD-R", "Con"))
-        plt.ylabel("Similarity index")
-        plt.grid(axis='y', color="0.9", linestyle='-', linewidth=1)
-        plt.xlim([0.5, 5.5])
-        #plt.ylim([0.4, 1])
-        plt.savefig("img/mle_bar.png")
-        
-        t, p = ttest_ind(hold_out_bd_preds, hold_out_d_preds)
-        print("BD vs MDD t={}, p={}".format(t, p))
-        t, p = ttest_ind(hold_out_d_preds, test_cat_list["R"])
-        print("MDD vs R t={}, p={}".format(t, p))
-        t, p = ttest_ind(hold_out_d_preds, test_cat_list["C"])
-        print("MDD vs C t={}, p={}".format(t, p))
-        t, p = ttest_ind(hold_out_d_preds, test_cat_list["BR"])
-        print("MDD vs BR t={}, p={}".format(t, p))
+    cats = bd_hold_out_cats.tolist() + bd_mean_cats.tolist() + [1]*len(test_cat_list["R"]) + [0]*len(test_cat_list["C"])
+    preds = bd_hold_mean_preds.tolist() + bd_mean_preds.tolist() + test_cat_list["R"] + test_cat_list["C"]
+    plotROC(cats, preds, xlabel="BD & BD-r vs C ")
 
-        t, p = ttest_ind(hold_out_bd_preds, test_cat_list["R"])
-        print("BD vs R t={}, p={}".format(t, p))
-        t, p = ttest_ind(hold_out_bd_preds, test_cat_list["C"])
-        print("BD vs C t={}, p={}".format(t, p))
-        t, p = ttest_ind(hold_out_bd_preds, test_cat_list["BR"])
-        print("BD vs BR t={}, p={}".format(t, p))
-
-        t, p = ttest_ind(test_cat_list["C"], test_cat_list["BR"])
-        print("C vs BR t={}, p={}".format(t, p))
-
-        t, p = ttest_ind(test_cat_list["C"], test_cat_list["R"])
-        print("C vs R t={}, p={}".format(t, p))
-
-
-        multi_preds = np.concatenate((hold_out_bd_preds, hold_out_d_preds, test_cat_list["BR"], test_cat_list["R"], test_cat_list["C"]))
-        multi_cat = [0]*len(hold_out_bd_preds) + [1]*len(hold_out_d_preds) + [2]*len(test_cat_list["BR"]) + [3]*len(test_cat_list["R"]) + [4]*len(test_cat_list["C"])
-        multi_out = pd.DataFrame([multi_preds, multi_cat]).T
-        multi_out.to_csv("multi_out.csv")
-        import pdb; pdb.set_trace();
-
+    print("ROCs saved in img/rocs.png...")
+    plt.savefig("img/rocs.png")
+    plt.clf()
+    x = [1, 2, 3, 4, 5]
+    y = [hold_out_bd_preds, hold_out_d_preds, test_cat_list["BR"], test_cat_list["R"], test_cat_list["C"]]
+    plt.boxplot(y)
+    plt.xticks([1, 2, 3, 4, 5], ("BD", "MDD", "BD-R", "MDD-R", "Con"))
+    plt.ylabel("Similarity index")
+    plt.grid(axis='y', color="0.9", linestyle='-', linewidth=1)
+    plt.xlim([0.5, 5.5])
+    #plt.ylim([0.4, 1])
+    print("Similarity index box plots saved in img/mle_bar.png...")
+    plt.savefig("img/mle_bar.png")
+    print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n")
